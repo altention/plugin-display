@@ -3,6 +3,27 @@
 Every release has a `## vX.Y.Z — date` heading, newest first, and an annotated git tag `vX.Y.Z` on the commit it
 describes. The format follows the engine's CHANGELOG: **For people**, **For people (zh-TW)**, **For agents**.
 
+## v0.4.1 — 2026-11-02
+
+### For people
+
+- **A formula right under a table stays a formula.** When a formula came right after a table, it could be drawn as
+  the table's last row; now each is drawn on its own, one under the other in the same picture.
+- **Numbered equations no longer overlap.** In a formula with equation numbers (such as `align`), (1) and (2)
+  were drawn over it; they now sit to its right.
+
+### For people (zh-TW)
+
+- **表格下面的公式不會再變成表格的一列。** 表格後面緊接公式時，公式有時會被畫成表格的最後一列；現在各自畫好，上下排在同一張圖裡。
+- **有編號的公式不再疊字。** 多行公式的編號 (1)、(2) 會壓在公式上；現在排在公式右邊。
+
+### For agents
+
+- Pictures next to each other in `--segments` and `--for-bot` are joined with an empty line, in the picture and in
+  its `.source.json` `source` alike.
+- A picture's `.source.json` `kind` names three or more parts as 「表格、公式和流程圖」 (was 「表格和公式和流程圖」); two stay
+  「公式和表格」.
+
 ## v0.4.0 — 2026-11-02
 
 ### For people

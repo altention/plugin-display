@@ -268,6 +268,35 @@ class Draw(unittest.TestCase):
                     self.assertGreater(w, 60)
                     self.assertGreater(h, 30)
 
+    def test_equation_numbers_have_room(self):
+        # KaTeX puts (1) at the right edge of a card as wide as the formula, over it: numbered, the picture is wider
+        # than unnumbered by the numbers' room, alone, as one of --for-bot's pictures and in --segments alike
+        if tools.missing("doc"):
+            self.skipTest("this machine lacks %s" % tools.missing("doc"))
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+
+        def widths(env):
+            tex = "\\begin{%s}a&=b\\\\c&=d\\end{%s}" % (env, env)
+            r = self.run_display("-e", tex, "--kind", "math", "-o", os.path.join(tmp, env + ".png"))
+            self.assertEqual(r.returncode, 0, r.stderr.decode())
+            alone = png_size(r.stdout.decode().split()[0])[0]
+            r = subprocess.run([sys.executable, BIN, "-", "--for-bot", "-o", os.path.join(tmp, env + "-bot.png")],
+                               input=("說明：\n\n" + tex + "\n").encode(), stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, timeout=120)
+            self.assertEqual(r.returncode, 0, r.stderr.decode())
+            bot = png_size(json.loads(r.stdout.decode())[0]["images"][0])[0]
+            path = os.path.join(tmp, env + ".md")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("說明：\n\n" + tex + "\n")
+            r = self.run_display(path, "--segments", "-o", os.path.join(tmp, env + "-seg.png"))
+            self.assertEqual(r.returncode, 0, r.stderr.decode())
+            seg = png_size([p for p in r.stdout.decode().split() if p.endswith(".png")][0])[0]
+            return alone, bot, seg
+
+        for numbered, plain in zip(widths("align"), widths("align*")):
+            self.assertGreater(numbered, plain * 1.4)
+
     def test_errors_are_said(self):
         for kind, (name, text, said) in ERRORS.items():
             with self.subTest(kind=kind):
@@ -1114,6 +1143,8 @@ class Sources(unittest.TestCase):
         self.assertEqual(sources.of_markdown("$$x$$")["lang"], "latex")
         both = sources.of_markdown("$$x$$\n| a |\n|---|\n| 1 |")
         self.assertEqual((both["kind"], both["lang"]), ("公式和表格", "markdown"))
+        three = sources.of_markdown("| a |\n|---|\n| 1 |\n\n$$x$$\n\n```mermaid\ngraph LR; A-->B\n```")
+        self.assertEqual(three["kind"], "表格、公式和流程圖")
         alone = sources.of_markdown("```mermaid\nflowchart TD\n  a --> b\n```")
         self.assertEqual(alone, {"kind": "流程圖", "lang": "mermaid", "tool": "Mermaid",
                                  "source": "flowchart TD\n  a --> b"})
@@ -1143,6 +1174,24 @@ class Sources(unittest.TestCase):
                 self.assertEqual(sources.read(image), p["sources"][image])  # the sidecar says the same
         self.assertEqual(posts[0]["sources"][posts[0]["images"][0]]["source"],
                          "$$\\sigma(z)_i = \\frac{e^{z_i}}{\\sum_j e^{z_j}}$$")
+
+    def test_pictures_next_to_each_other_keep_apart(self):
+        # a table, an empty line, $$…$$ and a mermaid fence: one picture, its parts an empty line apart, or
+        # markdown-it reads the $$ line as the table's next row
+        if tools.missing("doc"):
+            self.skipTest("this machine lacks %s" % tools.missing("doc"))
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        table, formula, chart = "| 項目 | 說明 |\n|---|---|\n| 甲 | 第一 |", "$$E=mc^2$$", "```mermaid\ngraph LR; A-->B\n```"
+        for text in (table + "\n\n" + formula + "\n" + chart, table + "\n" + formula + "\n" + chart):
+            self.assertEqual(kinds.split_segments(text), [("picture", "\n\n".join((table, formula, chart)))])
+        r = subprocess.run([sys.executable, BIN, "-", "--for-bot", "-o", os.path.join(tmp, "gap.png")],
+                           input=(table + "\n\n" + formula + "\n" + chart).encode(), stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE, timeout=120)
+        self.assertEqual(r.returncode, 0, r.stderr.decode())
+        posts = json.loads(r.stdout.decode())
+        self.assertEqual(len(posts), 1)
+        self.assertEqual(sources.read(posts[0]["images"][0])["source"], "\n\n".join((table, formula, chart)))
 
     def test_a_cut_doc_has_the_whole_source_on_each(self):
         if tools.missing("doc"):

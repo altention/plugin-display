@@ -61,7 +61,8 @@ def of_markdown(text):
     if len(blocks) == 1 and blocks[0][0] == "mermaid":  # the diagram alone: its source, without the fence
         return about(kinds[0], "mermaid", "Mermaid", blocks[0][1])
     lang = names[blocks[0][0]][2] if len({b for b, _ in blocks}) == 1 else "markdown"
-    return about("和".join(kinds)[:40], lang, "、".join(tools)[:40], text)
+    named = kinds[0] if len(kinds) == 1 else "、".join(kinds[:-1]) + "和" + kinds[-1]  # 甲和乙, 甲、乙和丙
+    return about(named[:40], lang, "、".join(tools)[:40], text)
 
 
 def of_input(kind, text, name=None, table=False, preamble=""):

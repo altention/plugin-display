@@ -222,6 +222,8 @@ th, td { padding: 5px 14px; } th { border-bottom: 1px solid %(fg)s; font-weight:
 tr:nth-child(even) td { background: rgba(127,127,127,.08); }
 hr { border: 0; border-top: 1px solid %(line)s; margin: 16px 0; }
 .katex { font-size: 1.12em; } .katex-display { overflow: hidden; }
+/* an equation's number takes room right of it: KaTeX puts it at the right edge, over a card as wide as the formula */
+.katex-display > .katex > .katex-html > .katex-tag { position: static; margin-left: 2em; }
 #c.solo, .seg.solo { padding: 10px 18px; } .solo .katex-display { margin: 0; } .solo > p { margin: 0; }
 .mermaid { text-align: center; overflow-wrap: normal; line-height: 1.2; font-family: %(sans)s; }
 .mermaid svg { max-width: 100%%; height: auto; }
@@ -296,8 +298,9 @@ def split_segments(text):
     lines, out, i = text.replace("\r\n", "\n").split("\n"), [], 0
 
     def add(kind, chunk):
+        # pictures next to each other with an empty line between: a $$ right under a table is not its next row
         if out and out[-1][0] == kind:
-            out[-1] = (kind, out[-1][1] + "\n" + chunk)
+            out[-1] = (kind, out[-1][1] + ("\n\n" if kind == "picture" else "\n") + chunk)
         else:
             out.append((kind, chunk))
 
