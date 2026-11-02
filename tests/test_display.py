@@ -207,10 +207,109 @@ class PluginJson(unittest.TestCase):
             self.assertTrue(n["why"] and n["size"] and n["hint"], n["name"])
             self.assertLessEqual(set(n["install"]), {"debian", "fedora", "arch", "macos"})
             for system, cmd in n["install"].items():
-                self.assertTrue(cmd.startswith("sudo ") or system == "macos", cmd)
+                # ours, where README says (the engine fills no {plugin} in install yet): sudo only when said
+                ours = cmd == "~/altention/plugins/display/bin/display --install chrome"
+                self.assertTrue(cmd.startswith("sudo ") or system == "macos" or ours, cmd)
             self.assertEqual(bool(n.get("optional")), bool(n.get("for")), n["name"])
         self.assertEqual([n["name"] for n in d["needs"] if n.get("optional")], ["poppler", "venv"])
         self.assertIn("ask", next(n for n in d["needs"] if n["name"] == "cjk-font"))
+
+    def test_chrome_installed_without_sudo_when_nothing_lacks(self):
+        # a Chrome that has its libraries: nothing fetched, nothing asked
+        from display import install
+        if sys.platform != "linux":
+            self.skipTest("Linux only")
+        with mock.patch.object(tools, "chrome_bin", return_value="/x/chrome"), \
+                mock.patch.object(install, "missing_libs", return_value=[]), \
+                mock.patch.object(install, "driver", side_effect=AssertionError("fetched")):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(install.chrome(), 0)
+        self.assertIn("已經有了", out.getvalue())
+
+    def test_lacking_libraries_said_with_the_sudo_line(self):
+        # no terminal: what is missing, why sudo, the line to run; exit 1, nothing run as root
+        from display import install
+        if sys.platform != "linux" or os.geteuid() == 0:
+            self.skipTest("Linux, not root (root installs it)")
+        with tempfile.TemporaryDirectory() as tmp:
+            node = os.path.join(tmp, "node")  # stands in for Playwright's driver: asks sudo for what it would run
+            with open(node, "w") as f:
+                f.write('#!/bin/sh\nsudo -- sh -c "apt-get update&& apt-get install -y --no-install-recommends libnss3 libgbm1"\n')
+            os.chmod(node, 0o755)
+            with mock.patch.object(tools, "chrome_bin", return_value="/x/chrome"), \
+                    mock.patch.object(install, "missing_libs", return_value=["libnss3.so", "libgbm.so.1"]), \
+                    mock.patch.object(install, "driver", return_value=(node, "cli.js")), \
+                    mock.patch.object(install, "os_like", return_value="debian"), \
+                    mock.patch("sys.stdin", io.StringIO()):
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):
+                    self.assertEqual(install.chrome(), 1)
+        said = out.getvalue()
+        self.assertIn("缺它要的 2 個系統函式庫：libnss3.so、libgbm.so.1", said)
+        self.assertIn("要 sudo", said)
+        self.assertIn("sudo sh -c 'apt-get update && apt-get install -y --no-install-recommends libnss3 libgbm1'", said)
+        self.assertIn("沒有終端機", said)
+        self.assertIn("跑完再跑一次 %s --check chrome" % tools.BIN, said)
+        self.assertEqual(install.named(["a", "b", "c"], 2), "a、b 等")
+
+    def test_root_installs_the_libraries_in_the_open(self):
+        # as root Playwright runs apt itself (no sudo to catch): said first, then run with its output shown
+        from display import install
+        with tempfile.TemporaryDirectory() as tmp:
+            node, ran = os.path.join(tmp, "node"), os.path.join(tmp, "ran")
+            with open(node, "w") as f:
+                f.write('#!/bin/sh\necho "$@" > %s\n' % ran)
+            os.chmod(node, 0o755)
+            with mock.patch.object(tools, "chrome_bin", return_value="/x/chrome"), \
+                    mock.patch.object(install, "missing_libs", side_effect=[["libnss3.so"], ["libnss3.so"], []]), \
+                    mock.patch.object(install, "driver", return_value=(node, "cli.js")), \
+                    mock.patch.object(install, "os_like", return_value="debian"), \
+                    mock.patch.object(install, "apt_command", side_effect=AssertionError("caught")), \
+                    mock.patch("os.geteuid", return_value=0):
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):
+                    self.assertEqual(install.chrome(), 0)
+            with open(ran) as f:
+                self.assertEqual(f.read().split(), ["cli.js", "install-deps", "chromium-headless-shell"])
+        said = out.getvalue()
+        self.assertLess(said.index("這裡是 root：用 Playwright 的 install-deps 裝這些"), said.index("裝好了"))
+
+    def test_a_terminal_is_asked_before_sudo(self):
+        from display import install
+        tty = mock.Mock(isatty=lambda: True)
+        with mock.patch.object(tools, "chrome_bin", return_value="/x/chrome"), \
+                mock.patch.object(install, "missing_libs", return_value=["libnss3.so"]), \
+                mock.patch.object(install, "driver", return_value=("node", "cli.js")), \
+                mock.patch.object(install, "os_like", return_value="fedora"), \
+                mock.patch("os.geteuid", return_value=1000), mock.patch("sys.stdin", tty), \
+                mock.patch("builtins.input", return_value="n") as asked, \
+                mock.patch("subprocess.run", side_effect=AssertionError("ran")):
+            out = io.StringIO()
+            out.isatty = lambda: True
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(install.chrome(), 1)
+        asked.assert_called_once_with("要現在用 sudo 跑嗎？[y/N] ")
+        self.assertIn("sudo dnf install -y chromium", out.getvalue())
+        self.assertIn("沒有跑", out.getvalue())
+
+    def test_offline_said_not_a_traceback(self):
+        import urllib.error
+        from display import install
+        with mock.patch.object(tools, "download", side_effect=urllib.error.URLError("no network")), \
+                mock.patch("platform.machine", return_value="x86_64"):
+            with self.assertRaisesRegex(tools.Fail, "抓不到 PyPI：no network"):
+                install.driver("/nonexistent")
+
+    def test_a_chrome_lacking_libraries_is_not_there(self):
+        from display import install
+        with mock.patch.object(tools, "chrome_bin", return_value="/x/chrome"), \
+                mock.patch.object(install, "missing_libs", return_value=["libnss3.so"]):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(tools.check_one("chrome"), 1)
+        self.assertIn("缺 1 個系統函式庫（libnss3.so）", out.getvalue())
+        self.assertIn("--install chrome", out.getvalue())
 
     def test_a_font_looked_for_without_fc_list(self):
         # by the files' names; fonts but none of them Chinese by name: 3, the engine's "cannot tell", said in words

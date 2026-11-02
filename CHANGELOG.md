@@ -3,6 +3,25 @@
 Every release has a `## vX.Y.Z — date` heading, newest first, and an annotated git tag `vX.Y.Z` on the commit it
 describes. The format follows the engine's CHANGELOG: **For people**, **For people (zh-TW)**, **For agents**.
 
+## v0.4.3 — 2026-11-03
+
+### For people
+
+- **Installing Chrome mostly needs no sudo now.** On Debian, Ubuntu and Fedora, Chrome is fetched without sudo when
+  the machine already has the system libraries it needs (most with a desktop do); when some are missing, it names
+  them and gives the one line, with sudo, that installs them.
+
+### For people (zh-TW)
+
+- **裝 Chrome 多半不用 sudo 了。** Debian、Ubuntu、Fedora 上，機器已經有 Chrome 要的系統函式庫時（有桌面的多半有），不用 sudo 就裝好；缺的時候先列出缺哪些，再給一行要 sudo 的指令把它們裝上。
+
+### For agents
+
+- `display --install chrome` (Linux): Playwright 1.64.1's wheel from PyPI (sha256 checked), its Node driver installs
+  `chromium-headless-shell` into `~/.cache/ms-playwright`; no venv, pip or python3-venv. Libraries missing (by
+  `ldd`): exit 1 with the sudo line, run only from a terminal. `--check chrome` now also fails (1) when the Chrome
+  found lacks libraries. plugin.json's Debian and Fedora install is this command.
+
 ## v0.4.2 — 2026-11-03
 
 ### For people

@@ -317,6 +317,13 @@ def check_one(name):
     """display --check <name>: plugin.json's check of one thing this machine has to have. Exit 0 when it is there,
     CANNOT when it cannot be told here (said too, for an engine that takes 3 as not there), else 1."""
     ok = cjk_font() if name == "cjk-font" else have(name)
+    if name == "chrome" and ok:
+        from .install import missing_libs, named
+        lacking = missing_libs(chrome_bin())
+        if lacking:
+            print("chrome: 有 %s，但缺 %d 個系統函式庫（%s）：%s --install chrome 會說怎麼裝" % (
+                chrome_bin(), len(lacking), named(lacking), BIN))
+            return 1
     if ok is None:
         print("%s: 查不了（這台沒有 fc-list，字型檔的名字也看不出來；%s要用；%s）" % ((name,) + SYSTEM[name]))
         return CANNOT

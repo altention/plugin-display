@@ -42,8 +42,8 @@
       "check": "{python} \"{plugin}/bin/display\" --check chrome",
       "why": "公式、表格、圖表、流程圖、程式差異、終端機輸出和 SVG／HTML，都是在沒有視窗的 Chrome 裡排好再拍成圖",
       "install": {
-        "debian": "sudo apt update && sudo apt install -y python3-venv && d=$(mktemp -d) && python3 -m venv \"$d\" && \"$d/bin/pip\" install -q playwright==1.64.1 && sudo \"$d/bin/playwright\" install-deps chromium-headless-shell && \"$d/bin/playwright\" install chromium-headless-shell && rm -rf \"$d\"",
-        "fedora": "sudo dnf install -y chromium",
+        "debian": "~/altention/plugins/display/bin/display --install chrome",
+        "fedora": "~/altention/plugins/display/bin/display --install chrome",
         "arch": "sudo pacman -S --needed --noconfirm chromium",
         "macos": "brew install --cask google-chrome"
       },

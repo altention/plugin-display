@@ -31,15 +31,12 @@ Claude 在 Discord 給你看公式、表格、圖表、流程圖或程式差異�
 - 不需要其他插件。
 - Python 3（Altention 本來就要）。
 - Chrome 或 Chromium，照這個順序找：`DISPLAY_CHROME` 寫的路徑、Playwright 裝的（`~/.cache/ms-playwright`）、`PATH` 上的 `chromium`、`chromium-browser`、`google-chrome` 或 `chrome`，最後是 macOS「應用程式」裡的 Google Chrome。
-  - Debian、Ubuntu：用 Playwright 的 Chrome（約 300 MB，x86_64 和 arm64 都有）。它從 pip 裝，不用 Node.js；只有它要的系統函式庫用 sudo 裝，有桌面的機器多半已經有了，沒有桌面的精簡系統另外約 300 MB。Ubuntu 用 apt 裝的 `chromium` 是 snap 版，打不開交給它的頁面，不能用。
+  - Linux（Debian、Ubuntu、Fedora）：用 Playwright 的 headless Chrome（約 300 MB，x86_64 和 arm64 都有），裝到 `~/.cache/ms-playwright`：
     ```sh
-    sudo apt update && sudo apt install -y python3-venv
-    d=$(mktemp -d) && python3 -m venv "$d" && "$d/bin/pip" install -q playwright==1.64.1
-    sudo "$d/bin/playwright" install-deps chromium-headless-shell
-    "$d/bin/playwright" install chromium-headless-shell && rm -rf "$d"
+    ~/altention/plugins/display/bin/display --install chrome
     ```
-    沒有 sudo、但系統函式庫已經有了（有桌面的機器多半是）的話：跳過 `apt` 和 `install-deps` 那兩行，只跑建 venv、`pip install` 和 `playwright install`；這台沒有 `venv` 又沒有 sudo，就請有 sudo 的人裝 `python3-venv`。
-  - Fedora：`sudo dnf install -y chromium`。Arch：`sudo pacman -S --needed --noconfirm chromium`。
+    這台已經有 Chrome 要的系統函式庫（有桌面的機器多半有）時，不用 sudo、venv 或 Node.js。缺的時候，它先列出缺哪些，再給一行要 sudo 的指令把它們裝上（沒有桌面的精簡系統，這些函式庫約 300 MB）：在終端機裡跑，會先問要不要現在用 sudo 跑這行；不是的話請自己跑那行，再跑 `display --check chrome`。Ubuntu 用 apt 裝的 `chromium` 是 snap 版，打不開交給它的頁面，不能用。
+  - Arch：`sudo pacman -S --needed --noconfirm chromium`。
   - macOS：Google Chrome，或 `brew install --cask google-chrome`。
 - PDF 的頁面和完整 LaTeX 要 poppler（選用，約 5 MB）：`sudo apt install -y poppler-utils`（Debian、Ubuntu）；`sudo dnf install -y poppler-utils`（Fedora）；`sudo pacman -S --needed --noconfirm poppler`（Arch）；`brew install poppler`（macOS）。
 - 完整 LaTeX 要能把它關在自己的資料夾裡：Linux 要 kernel 5.13 以上、開著 Landlock（現在的 Debian、Ubuntu 都有）；macOS 用內建的 `sandbox-exec`。`display --check` 的 `sandbox` 那行看得到。

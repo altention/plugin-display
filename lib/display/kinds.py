@@ -24,7 +24,7 @@ import subprocess
 import tempfile
 import time
 
-from . import confine, render
+from . import confine
 from .render import MONO, SANS, SERIF, THEMES, font_stack, page
 from .tools import TOOLS, Fail, asset, say, tectonic_bin, tectonic_cache, venv_python
 

@@ -12,6 +12,8 @@ posted to a channel when asked.
   display --setup [browser|tectonic|plot|all]          get the tools into ~/.cache/altention-display (default: browser)
   display --check [chrome|poppler|cjk-font|venv]       what this machine has, and the kinds it can draw; with a
                                                        name, exit 0 when it has that one (plugin.json's needs)
+  display --install chrome                             Linux: a headless Chrome in ~/.cache/ms-playwright; sudo only
+                                                       for system libraries it lacks, said first (plugin.json's needs)
 
 Kinds (--kind; guessed from the file name or the input when left out):
   doc      Markdown: text, $math$ and $$display math$$, \\begin{align}, tables, ```mermaid fences (aliases: math);
@@ -214,8 +216,13 @@ def main(argv=None):
     ap.add_argument("--setup", nargs="?", const="browser", choices=["browser", "tectonic", "plot", "all"])
     ap.add_argument("--check", nargs="?", const="", choices=[""] + sorted(tools.SYSTEM),
                     help="alone: what this machine has; with a name: exit 0 when it has that (plugin.json's needs)")
+    ap.add_argument("--install", choices=["chrome"],
+                    help="Linux: a headless Chrome, without sudo when this machine has its libraries (plugin.json's install)")
     a = ap.parse_args(argv)
     try:
+        if a.install:
+            from . import install
+            return install.chrome()
         if a.setup:
             tools.setup(["browser", "tectonic", "plot"] if a.setup == "all" else [a.setup])
             tools.check()

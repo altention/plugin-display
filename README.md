@@ -43,20 +43,17 @@ An [Altention](https://github.com/altention/altention) plugin.
 - Chrome or Chromium, found in this order: the path in `DISPLAY_CHROME`, one installed by Playwright
   (`~/.cache/ms-playwright`), `chromium`, `chromium-browser`, `google-chrome` or `chrome` on your `PATH`, then
   Google Chrome in macOS's Applications folder.
-  - Debian, Ubuntu: Playwright's Chrome (about 300 MB, for x86_64 and arm64). It comes from pip, no Node.js; only
-    the system libraries it needs take sudo, and a machine with a desktop mostly has them already (a minimal system
-    without one: about 300 MB more). Ubuntu's own `chromium` from apt is a snap, which cannot open the pages it is
-    given.
+  - Linux (Debian, Ubuntu, Fedora): Playwright's headless Chrome (about 300 MB, for x86_64 and arm64), put in
+    `~/.cache/ms-playwright` by
     ```sh
-    sudo apt update && sudo apt install -y python3-venv
-    d=$(mktemp -d) && python3 -m venv "$d" && "$d/bin/pip" install -q playwright==1.64.1
-    sudo "$d/bin/playwright" install-deps chromium-headless-shell
-    "$d/bin/playwright" install chromium-headless-shell && rm -rf "$d"
+    ~/altention/plugins/display/bin/display --install chrome
     ```
-    Without sudo, with the system libraries already there (mostly so on a machine with a desktop): skip the `apt`
-    and `install-deps` lines, and run only the venv, `pip install` and `playwright install`; with no `venv` here and
-    no sudo, ask someone with sudo to install `python3-venv`.
-  - Fedora: `sudo dnf install -y chromium`. Arch: `sudo pacman -S --needed --noconfirm chromium`.
+    When this machine already has the system libraries Chrome needs (mostly so with a desktop), it needs no sudo,
+    venv or Node.js. When some are missing, it names them, then gives the one line, with sudo, that installs them
+    (on a minimal system without a desktop, these libraries are about 300 MB): from a terminal it asks whether to run
+    that line now with sudo; otherwise run that line yourself, then `display --check chrome`. Ubuntu's
+    own `chromium` from apt is a snap, which cannot open the pages it is given.
+  - Arch: `sudo pacman -S --needed --noconfirm chromium`.
   - macOS: Google Chrome, or `brew install --cask google-chrome`.
 - For PDF pages and full LaTeX: poppler (optional, about 5 MB). `sudo apt install -y poppler-utils` (Debian,
   Ubuntu); `sudo dnf install -y poppler-utils` (Fedora); `sudo pacman -S --needed --noconfirm poppler` (Arch);
