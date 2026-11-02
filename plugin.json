@@ -1,0 +1,108 @@
+{
+  "format": 1,
+  "name": "display",
+  "title": "顯示",
+  "description": "一個 skill 加一支指令（bin/display）：Discord 顯示不了的東西（數學式、表格、圖表、流程圖、程式差異、長文件、終端機顏色、SVG／HTML／PDF）先轉成深底的 PNG，再用 altention dc post --file 貼上；也教 Claude 什麼時候直接用 Discord 吃得下的格式（```diff、程式碼區塊）。",
+  "pitch": "Discord 不會排版公式、沒有表格、不會畫圖。開著的話，任何頻道的 Claude 要給你看公式、表格、圖表、流程圖或程式差異時，會先轉成圖片再貼。只在要顯示時才在這台跑（headless Chrome），工具裝在 ~/.cache/altention-display。",
+  "keep": "Claude 在 Discord 用圖片顯示公式、表格、圖表、流程圖和差異",
+  "lose": "公式只能是原始的 LaTeX 文字，表格只能用清單，圖表和流程圖只能用文字描述",
+  "order": 60,
+  "machines": "all",
+  "uses": {
+    "dc.post": 1,
+    "dc.read": 1,
+    "rewrite": 1,
+    "tokens": 1
+  },
+  "skills": [
+    {
+      "name": "display",
+      "path": "skill"
+    }
+  ],
+  "setup": [
+    {
+      "name": "browser",
+      "run": "{python} \"{plugin}/bin/display\" --setup browser"
+    },
+    {
+      "name": "tectonic",
+      "run": "{python} \"{plugin}/bin/display\" --setup tectonic",
+      "lazy": true
+    },
+    {
+      "name": "plot",
+      "run": "{python} \"{plugin}/bin/display\" --setup plot",
+      "lazy": true
+    }
+  ],
+  "needs": [
+    {
+      "name": "chrome",
+      "check": "{python} \"{plugin}/bin/display\" --check chrome",
+      "why": "公式、表格、圖表、流程圖、程式差異、終端機輸出和 SVG／HTML，都是在沒有視窗的 Chrome 裡排好再拍成圖",
+      "install": {
+        "debian": "sudo apt update && sudo apt install -y python3-venv && d=$(mktemp -d) && python3 -m venv \"$d\" && \"$d/bin/pip\" install -q playwright==1.64.1 && sudo \"$d/bin/playwright\" install-deps chromium-headless-shell && \"$d/bin/playwright\" install chromium-headless-shell && rm -rf \"$d\"",
+        "fedora": "sudo dnf install -y chromium",
+        "arch": "sudo pacman -S --needed --noconfirm chromium",
+        "macos": "brew install --cask google-chrome"
+      },
+      "size": "約 300 MB；沒有桌面的精簡系統，系統函式庫另外約 300 MB",
+      "hint": "裝 Chrome 或 Chromium 放在 PATH 上，或把 DISPLAY_CHROME 設成它的路徑（寫在 ~/.zshenv 這種非互動 shell 也讀得到的地方）；各系統的裝法見 README 的「需求」。Ubuntu 用 apt 裝的 chromium 是 snap，不能用"
+    },
+    {
+      "name": "poppler",
+      "check": "{python} \"{plugin}/bin/display\" --check poppler",
+      "why": "把 PDF 的頁面和 LaTeX 排好的文件轉成圖",
+      "install": {
+        "debian": "sudo apt install -y poppler-utils",
+        "fedora": "sudo dnf install -y poppler-utils",
+        "arch": "sudo pacman -S --needed --noconfirm poppler",
+        "macos": "brew install poppler"
+      },
+      "size": "約 5 MB",
+      "optional": true,
+      "for": [
+        "PDF 的頁面",
+        "完整的 LaTeX 文件"
+      ],
+      "hint": "裝 poppler（有 pdftoppm、pdfinfo 這兩個指令）。Debian／Ubuntu：sudo apt install poppler-utils；Mac：brew install poppler"
+    },
+    {
+      "name": "cjk-font",
+      "check": "{python} \"{plugin}/bin/display\" --check cjk-font",
+      "why": "圖裡的中文要有中文字型，不然會變成方框",
+      "install": {
+        "debian": "sudo apt install -y fonts-noto-cjk",
+        "fedora": "sudo dnf install -y google-noto-sans-cjk-fonts",
+        "arch": "sudo pacman -S --needed --noconfirm noto-fonts-cjk"
+      },
+      "size": "約 90 MB",
+      "ask": "這台查不了字型（沒有 fc-list）。這台裝了中文字型嗎（例如 Noto Sans CJK、文泉驛）？",
+      "hint": "裝一套中文字型。Debian／Ubuntu：sudo apt install fonts-noto-cjk；Mac 本來就有"
+    },
+    {
+      "name": "venv",
+      "check": "{python} \"{plugin}/bin/display\" --check venv",
+      "why": "用 matplotlib 畫的圖，插件要建自己的 Python 環境來裝 matplotlib",
+      "install": {
+        "debian": "sudo apt install -y python3-venv"
+      },
+      "size": "約 5 MB；第一次畫的時候另外下載 matplotlib，約 180 MB",
+      "optional": true,
+      "for": [
+        "matplotlib 畫的圖"
+      ],
+      "hint": "Python 要能建 venv。Debian／Ubuntu：sudo apt install python3-venv；Mac 本來就有"
+    }
+  ],
+  "offer": {
+    "cost": "Chrome（約 300 MB）和中文字型（約 90 MB），已經有的不用再裝；選用：poppler（PDF、LaTeX，約 5 MB）、python3-venv（matplotlib 的圖）；畫圖的函式庫插件自己下載，約 9 MB",
+    "when": "install"
+  },
+  "rewrite": {
+    "command": "{python} \"{plugin}/bin/display\" - --for-bot -o \"{out}\"",
+    "timeout": 30,
+    "when": "^\\s*(\\$\\$|\\\\\\[|\\\\begin\\{|\\|.*\\|\\s*$|```mermaid)"
+  }
+}
