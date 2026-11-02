@@ -48,6 +48,7 @@ D.finish = function () {
   if (D.done) return;
   D.done = true;
   var go = function () {
+    if (D.check) D.check();
     var r = C.getBoundingClientRect(), blocks = D.blocks || [];
     for (var i = 0; i < (D.blocks ? 0 : C.children.length); i++) {
       var b = C.children[i].getBoundingClientRect(), top = Math.floor(b.top - r.top);
@@ -170,6 +171,7 @@ def shoot(html_text, out, scale=2.0, max_height=None, timeout=60, files=None, fi
         errors = json.loads(html.unescape(errors.group(1))) if errors else []
         if errors:
             raise Fail("畫不出來：\n  " + "\n  ".join(str(e) for e in errors[:8]))
+        wide_math(dom)
         note = re.search(r'<body[^>]*data-note="([^"]*)"', dom)
         if note:
             say(html.unescape(note.group(1)))
@@ -198,9 +200,22 @@ def shoot(html_text, out, scale=2.0, max_height=None, timeout=60, files=None, fi
         return outs
 
 
-def shoot_segments(html_text, out, scale=2.0, timeout=60):
+def wide_math(dom, strict=False):
+    """The formulas the page says its card cut (data-wide): said, or with `strict` (for the bot: no picture with
+    half a formula) failed."""
+    wide = re.search(r'<body[^>]*data-wide="([^"]*)"', dom)
+    if not wide:
+        return
+    said = "第 %s 個公式太寬被裁掉：拆成多行（align）" % "、".join(str(n) for n in json.loads(html.unescape(wide.group(1))))
+    if strict:
+        raise Fail(said)
+    say(said)
+
+
+def shoot_segments(html_text, out, scale=2.0, timeout=60, strict=False):
     """A page of several cards (D.segments) as one picture each: out-1.png, out-2.png … in order. One pass lays
-    them all out and says their sizes; each picture is then a window that size, showing that card alone (#only=)."""
+    them all out and says their sizes; each picture is then a window that size, showing that card alone (#only=).
+    `strict`: a formula cut by its card fails it all (wide_math)."""
     with tempfile.TemporaryDirectory(prefix="display-") as tmp:
         path = os.path.join(tmp, "page.html")
         with open(path, "w", encoding="utf-8") as f:
@@ -211,6 +226,7 @@ def shoot_segments(html_text, out, scale=2.0, timeout=60):
         errors = json.loads(html.unescape(errors.group(1))) if errors else []
         if errors:
             raise Fail("畫不出來：\n  " + "\n  ".join(str(e) for e in errors[:8]))
+        wide_math(dom, strict)
         found = re.search(r'<body[^>]*data-segments="([^"]*)"', dom)
         if not found:
             raise Fail("Chrome 沒有在時間內畫完：%s" % r.stderr.decode("utf-8", "replace").strip()[-400:])

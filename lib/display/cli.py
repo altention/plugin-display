@@ -125,7 +125,8 @@ def segments(text, out, a):
         if not a.for_bot:  # said to Claude; the bot's log needs nothing here
             say("這份回答沒有要畫的（公式、表格、流程圖）：直接寫成文字回覆就好")
         return plan
-    paths = render.shoot_segments(kinds.segments_page(pictures, a.theme, a.width), out, a.scale)
+    paths = render.shoot_segments(kinds.segments_page(pictures, a.theme, a.width), out, a.scale,
+                                  strict=a.for_bot)
     for i, path in enumerate(paths):
         h = png_height(path) / a.scale
         if h > MAX_HEIGHT and a.for_bot:

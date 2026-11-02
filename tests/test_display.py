@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 import unittest
+import zlib
 from unittest import mock
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,6 +30,46 @@ def png_size(path):
         head = f.read(24)
     assert head[:8] == b"\x89PNG\r\n\x1a\n", "not a PNG"
     return struct.unpack(">II", head[16:24])
+
+
+def inked(rows):
+    """[(x, y)] of the pixels not the background's colour (that of the top left corner)."""
+    bg = rows[0][0]
+    return [(x, y) for y, r in enumerate(rows) for x, p in enumerate(r)
+            if max(abs(p[i] - bg[i]) for i in range(3)) > 40]
+
+def png_rows(path):
+    """The rows of an 8-bit RGB or RGBA PNG (what Chrome writes), each a list of (r, g, b)."""
+    with open(path, "rb") as f:
+        data = f.read()
+    pos, idat = 8, b""
+    while pos < len(data):
+        n, kind = struct.unpack(">I4s", data[pos:pos + 8])
+        if kind == b"IHDR":
+            w, h, depth, color = struct.unpack(">IIBB", data[pos + 8:pos + 18])
+        elif kind == b"IDAT":
+            idat += data[pos + 8:pos + 8 + n]
+        pos += 12 + n
+    assert depth == 8 and color in (2, 6), "not 8-bit RGB(A)"
+    bpp, raw, rows, prev = 3 if color == 2 else 4, zlib.decompress(idat), [], None
+    stride = w * bpp
+    for y in range(h):
+        f, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+        prev = prev or bytearray(stride)
+        for x in range(stride):
+            a, b, c = line[x - bpp] if x >= bpp else 0, prev[x], prev[x - bpp] if x >= bpp else 0
+            if f == 1:
+                line[x] = (line[x] + a) & 255
+            elif f == 2:
+                line[x] = (line[x] + b) & 255
+            elif f == 3:
+                line[x] = (line[x] + (a + b) // 2) & 255
+            elif f == 4:
+                pa, pb, pc = abs(b - c), abs(a - c), abs(a + b - 2 * c)
+                line[x] = (line[x] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+        rows.append([tuple(line[x:x + 3]) for x in range(0, stride, bpp)])
+        prev = line
+    return rows
 
 
 class Detect(unittest.TestCase):
@@ -296,6 +337,87 @@ class Draw(unittest.TestCase):
 
         for numbered, plain in zip(widths("align"), widths("align*")):
             self.assertGreater(numbered, plain * 1.4)
+
+    def test_a_wide_formula_widens_its_card_then_is_said_cut(self):
+        # past the text's 720 a formula takes up to MATH_MAX, whole; wider still its card cuts it: said (its number
+        # among the page's formulas), and the bot gets no pictures at all (exit 2: the reply goes as written)
+        if tools.missing("doc"):
+            self.skipTest("this machine lacks %s" % tools.missing("doc"))
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        terms = lambda n: "y=c_0" + "".join("+\\alpha_{%d}\\sin(\\omega_{%d} t+\\phi_{%d})" % (k, k, k)
+                                          for k in range(1, n + 1))
+        fits = "一段說明文字。\n\n\\begin{equation} %s \\end{equation}\n" % terms(5)
+        cut = "一段說明文字。\n\n$$a=b$$\n\n$$ %s $$\n" % terms(16)
+        for name, text in (("fits", fits), ("cut", cut)):
+            path = os.path.join(tmp, name + ".md")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(text)
+            for how in (["--kind", "doc"], ["--segments"]):
+                r = self.run_display(path, *how, "-o", os.path.join(tmp, name + how[-1] + ".png"))
+                self.assertEqual(r.returncode, 0, r.stderr.decode())
+                pic = [p for p in r.stdout.decode().split() if p.endswith(".png")][-1]
+                if name == "fits":
+                    self.assertNotIn("太寬", r.stderr.decode())
+                    self.assertGreater(png_size(pic)[0], (720 + 60) * 2)  # wider than the text, the number too
+                    self.assertTrue(self.ends_whole(pic))
+                else:
+                    self.assertIn("第 2 個公式太寬被裁掉：拆成多行（align）", r.stderr.decode())
+            r = subprocess.run([sys.executable, BIN, "-", "--for-bot", "-o", os.path.join(tmp, name + "-bot.png")],
+                               input=text.encode(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
+            if name == "fits":
+                self.assertEqual(r.returncode, 0, r.stderr.decode())
+            else:
+                self.assertEqual(r.returncode, 2)
+                self.assertIn("第 2 個公式太寬被裁掉", r.stderr.decode())
+                self.assertFalse([f for f in os.listdir(tmp) if f.startswith("cut-bot")])
+
+    def ends_whole(self, path):
+        """Whether the picture's rightmost ink is a whole ")": its last column a short stroke (the curve's middle),
+        the column 6 px left of it its full height. A ")" cut by its box ends in a full-height column, or is gone."""
+        ink = inked(png_rows(path))
+        right = max(x for x, _ in ink)
+        span = lambda col: (lambda ys: max(ys) - min(ys) if ys else 0)([y for x, y in ink if x == col])
+        return span(right) <= 12 and span(right - 6) >= 30
+
+    def test_a_formula_at_its_cards_edge_is_whole(self):
+        # the card as wide as the formula: drawn at scale 2, its last glyph came out a fraction wider and the
+        # formula's overflow: hidden cut it (3 terms: half a ")", 4: a sliver, 5: none), saying nothing
+        if tools.missing("doc"):
+            self.skipTest("this machine lacks %s" % tools.missing("doc"))
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        for n in (3, 4, 5):
+            path = os.path.join(tmp, "n%d.md" % n)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("說明文字。\n\n$$y(t)=c_0%s$$\n" % "".join(
+                    "+\\alpha_%d\\sin(\\omega_%d t+\\phi_%d)" % (k, k, k) for k in range(1, n + 1)))
+            r = self.run_display(path, "-o", os.path.join(tmp, "n%d.png" % n))
+            self.assertEqual(r.returncode, 0, r.stderr.decode())
+            self.assertNotIn("太寬", r.stderr.decode())
+            self.assertTrue(self.ends_whole(r.stdout.decode().split()[0]), n)
+
+    def test_only_the_formula_widens(self):
+        # text in the same paragraph as a wide formula keeps the text's width; one in a list or a quote widens too
+        if tools.missing("doc"):
+            self.skipTest("this machine lacks %s" % tools.missing("doc"))
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        tex = "$$y(t)=c_0%s$$" % "".join("+\\alpha_%d\\sin(\\omega_%d t+\\phi_%d)" % (k, k, k) for k in range(1, 6))
+        long = "一段很長的文字，" * 30
+        for name, text in (("para", long + "\n" + tex + "\n" + long + "\n"), ("list", "1. 第一步：\n\n   " + tex + "\n"),
+                           ("quote", "> " + tex + "\n")):
+            path = os.path.join(tmp, name + ".md")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(text)
+            r = self.run_display(path, "-o", os.path.join(tmp, name + ".png"))
+            self.assertEqual(r.returncode, 0, r.stderr.decode())
+            self.assertNotIn("太寬", r.stderr.decode())
+            pic = r.stdout.decode().split()[0]
+            self.assertGreater(png_size(pic)[0], (720 + 60) * 2, name)
+            self.assertTrue(self.ends_whole(pic), name)
+            if name == "para":  # the first line, text: within the card's padding and 720
+                self.assertLessEqual(max(x for x, _ in inked(png_rows(pic)[:80])), (26 + 720) * 2 + 4)
 
     def test_errors_are_said(self):
         for kind, (name, text, said) in ERRORS.items():

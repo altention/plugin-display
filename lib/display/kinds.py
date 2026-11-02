@@ -174,6 +174,24 @@ while ((node = walk.nextNode())) {
   var m = node.nodeValue.match(/\$\s*\\[a-zA-Z]|\$[^$\n]*[\^_{]|\\[(\[]/);
   if (m) D.errors.push("看起來是沒配對的公式（錢號本身寫成 \\$）：…" + node.nodeValue.substr(Math.max(0, m.index - 20), 60) + "…");
 }
+// after the fonts: each display formula as wide as it is, with a little room (at the picture's scale a glyph comes
+// out a fraction wider: with none, overflow: hidden cuts the last one), up to MATH_MAX; its card (the page's, or
+// its --segments card) widened to hold it, the text around it still at the text's width. Wider still: cut, said
+D.check = function () {
+  var wide = [];
+  C.querySelectorAll(".katex-display").forEach(function (k, i) {
+    var card = k.closest(".seg") || C, want = k.scrollWidth + 4;
+    if (!k.scrollWidth) return;  // a --segments card not shown in this picture
+    if (want > MATH_MAX) { wide.push(i + 1); want = MATH_MAX; }
+    if (want <= k.clientWidth) return;
+    k.style.width = want + "px";
+    var c = card.getBoundingClientRect(), right = parseFloat(getComputedStyle(card).paddingRight);
+    card.style.boxSizing = "border-box";
+    card.style.minWidth = Math.max(parseFloat(card.style.minWidth) || 0,
+                                   Math.ceil(k.getBoundingClientRect().left - c.left + want + right)) + "px";
+  });
+  if (wide.length) document.body.setAttribute("data-wide", JSON.stringify(wide));
+};
 // whole words in tables, unless a word longer than a column can be (a hash, a URL, a path) would make the table
 // wider than TABLE_MAX: then that table breaks anywhere, as it must to fit
 C.querySelectorAll("table").forEach(function (t) {
@@ -203,6 +221,8 @@ if (fences.length && window.mermaid) {
 # wide, and a 1100-wide table is unreadable there (720 is about the limit); a table with more than that needs
 # goes out as a CSV file as well
 TABLE_MAX = 720
+# the widest a display formula gets: smaller on a phone but whole beats cut; past it, the card cuts it (said)
+MATH_MAX = 1200
 
 DOC_CSS = """
 #c > :not(table) { max-width: %(width)dpx; } table { max-width: %(table)dpx; }
@@ -223,7 +243,7 @@ tr:nth-child(even) td { background: rgba(127,127,127,.08); }
 hr { border: 0; border-top: 1px solid %(line)s; margin: 16px 0; }
 .katex { font-size: 1.12em; } .katex-display { overflow: hidden; }
 /* an equation's number takes room right of it: KaTeX puts it at the right edge, over a card as wide as the formula */
-.katex-display > .katex > .katex-html > .katex-tag { position: static; margin-left: 2em; }
+.katex-display > .katex > .katex-html > .katex-tag { position: static; margin-left: 2em; padding-right: .2em; }
 #c.solo, .seg.solo { padding: 10px 18px; } .solo .katex-display { margin: 0; } .solo > p { margin: 0; }
 .mermaid { text-align: center; overflow-wrap: normal; line-height: 1.2; font-family: %(sans)s; }
 .mermaid svg { max-width: 100%%; height: auto; }
@@ -272,7 +292,8 @@ def doc(text, theme, width, name=None, table=False):
     if re.search(r"^(```|~~~)\s*mermaid", text, re.M):
         head += src("mermaid", "dist/mermaid.min.js")
     css = DOC_CSS % dict(t, mono=MONO, sans=font_stack(SANS), width=width, table=max(width, TABLE_MAX))
-    script = (theme_js(theme) + MERMAID_JS + "var SRC = %s, TABLE_MAX = %d;\n" % (script_json(text), max(width, TABLE_MAX))
+    script = (theme_js(theme) + MERMAID_JS + "var SRC = %s, TABLE_MAX = %d, MATH_MAX = %d;\n" % (
+        script_json(text), max(width, TABLE_MAX), max(width, MATH_MAX))
               + DOC_JS)
     return page("", theme, css=css, head=head, script=script, font=font_stack(SERIF))
 
@@ -417,8 +438,8 @@ def segments_page(pictures, theme, width):
         head += src("mermaid", "dist/mermaid.min.js")
     css = DOC_CSS % dict(t, mono=MONO, sans=font_stack(SANS), width=width, table=max(width, TABLE_MAX))
     css += SEG_CSS % dict(width=width)
-    script = (theme_js(theme) + MERMAID_JS + "var SRCS = %s, TABLE_MAX = %d;\n" % (script_json(pictures),
-              max(width, TABLE_MAX)) + DOC_JS)
+    script = (theme_js(theme) + MERMAID_JS + "var SRCS = %s, TABLE_MAX = %d, MATH_MAX = %d;\n" % (script_json(pictures),
+              max(width, TABLE_MAX), max(width, MATH_MAX)) + DOC_JS)
     return page("", theme, css=css, head=head, script=script, font=font_stack(SERIF))
 
 

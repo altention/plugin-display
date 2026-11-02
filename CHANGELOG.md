@@ -3,6 +3,24 @@
 Every release has a `## vX.Y.Z — date` heading, newest first, and an annotated git tag `vX.Y.Z` on the commit it
 describes. The format follows the engine's CHANGELOG: **For people**, **For people (zh-TW)**, **For agents**.
 
+## v0.4.2 — 2026-11-03
+
+### For people
+
+- **Long formulas are no longer cut off unnoticed.** A one-line formula wider than the text now gets a wider
+  picture and is drawn whole. One wider still is not drawn: the reply is posted as written, never with half a
+  formula.
+
+### For people (zh-TW)
+
+- **長公式不再被悄悄切掉。** 比文字寬的一行公式，圖會跟著加寬、整條畫出來；再寬的就不畫，整則照原文貼出，不會只貼半條公式。
+
+### For agents
+
+- A display formula is drawn up to 1200 px wide (`MATH_MAX`; text and tables stay at `--width`). A formula still
+  wider is reported on stderr as 「第 N 個公式太寬被裁掉：拆成多行（align）」 (N counts the page's display
+  formulas). With `--for-bot` that fails the whole reply (exit 2), so the bot posts it as written.
+
 ## v0.4.1 — 2026-11-02
 
 ### For people
