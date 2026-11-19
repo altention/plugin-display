@@ -37,7 +37,7 @@ An [Altention](https://github.com/altention/altention) plugin.
 
 ## Requirements
 
-- Altention 0.5.0 or later
+- Altention 0.6.0 or later
 - No other plugins.
 - Python 3 (already there for Altention).
 - Chrome or Chromium, found in this order: the path in `DISPLAY_CHROME`, one installed by Playwright

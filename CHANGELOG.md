@@ -3,6 +3,25 @@
 Every release has a `## vX.Y.Z — date` heading, newest first, and an annotated git tag `vX.Y.Z` on the commit it
 describes. The format follows the engine's CHANGELOG: **For people**, **For people (zh-TW)**, **For agents**.
 
+## v0.4.4 — 2026-11-20
+
+### For people
+
+- **The line for installing Chrome runs from any folder; this version needs Altention 0.6.0 or later.** The line
+  that #setup, doctor and install.sh give now holds the full path to the plugin, so it runs as copied, from any
+  folder. On Altention 0.5.x, update the engine first: 0.5.x does not turn this version on, and says to update the
+  engine.
+
+### For people (zh-TW)
+
+- **裝 Chrome 的指令在哪個資料夾都能跑；這一版需要 Altention 0.6.0 以上。**#setup、doctor 和 install.sh 給的裝 Chrome 指令，現在寫的是插件所在位置的完整路徑，在哪個資料夾都能照抄就跑。還在 Altention 0.5.x 的話，請先更新引擎：0.5.x 不會啟用這一版，會說要更新引擎。
+
+### For agents
+
+- Update the engine to 0.6.0 or later before moving display to this version.
+- plugin.json: `uses.tokens` is 2; the chrome need's Debian and Fedora install is
+  `{python} "{plugin}/bin/display" --install chrome`, filled in by the engine (0.6.0) as a check is.
+
 ## v0.4.3 — 2026-11-03
 
 ### For people

@@ -12,3 +12,14 @@
 - 2026-10-22，審 HTML 縮窄時提出（記下不修）：用絕對定位、寫死 px 寬的 `::before`／`::after` 裝飾（例如 700px 的線）在頁面縮窄後會被裁掉；`width:100%` 的不受影響。`box-shadow` 往外偏移的也會被裁。另外 `gantt title 計畫` 這種 title 寫在同一行的，不會關掉「今天」的線。都少見，沒壞圖。
 - 2026-10-24，做安裝引導時在 docker 實測發現（記下不修）：fedora:42 映像裡用 `dnf install chromium` 裝的 Chromium 畫不出圖，每張都等到逾時（「Chrome 沒有在時間內畫完」）。原因是 docker 預設不給 user namespace，Chromium 的 sandbox 起不來（stderr 是 `Failed to move to new namespace…Operation not permitted`、zygote `Check failed`），但程序卡住不結束，不會以非 0 退出；`run_chrome` 只在「結束碼非 0 且 stderr 有 sandbox」時加 `--no-sandbox` 重試，所以接不到。真的 Fedora 主機有 user namespace，不受影響；ubuntu、debian 映像裡用 Playwright 裝的 headless shell 也畫得出來。
 - 2026-11-03，做不用 sudo 的 Chrome 安裝（`display --install chrome`）時（記下不修）：Arch 沒有在 docker 實測，官方 archlinux 映像沒有 arm64，開發機是 aarch64。照理在 Arch 也一樣（函式庫齊就不用 sudo，缺的時候給 pacman 那行），但沒測過，所以 plugin.json 的 Arch 裝法維持 `sudo pacman -S --needed --noconfirm chromium`。Ubuntu 24.04、Fedora 映像實測過；Fedora 映像裡用 `--install chrome` 裝的 headless shell 畫得出圖（上一項卡住的是 dnf 裝的 Chromium）。
+- 2026-11-12，manager 整理的舊項（記下不修）：
+  - 路徑寫死 `~/altention`：skill/SKILL.md 的指令範例寫 `~/altention/plugins/display/bin/display`，`cli.py` 找不到 `altention` 指令時退回 `~/altention/engine/bin/altention`。Altention 裝在別的資料夾時，這兩處都對不上。
+  - 停用插件時，`~/.cache/altention-display`（瀏覽器函式庫、Tectonic、matplotlib 的 venv、畫好的圖）不會清掉。
+  - skill 的低項：
+    - 貼之前沒有要 Claude 先看一眼畫出來的圖。
+    - 「會以原始文字顯示」這種說法跟實際的行為不符。
+    - 沒有 sidecar（`<圖>.png.source.json`）的圖，要重畫時拿不到原文。
+  - plugin.json chrome 的 why／size 沒寫 Debian／Ubuntu 缺函式庫時，Playwright 的 install-deps 會一起裝上中文字型（fonts-wqy-zenhei 等）。
+  - Fedora：
+    - 上面 docker 裡 dnf 裝的 Chromium 沙箱卡住的問題還在。
+    - `display --install chrome` 在 Fedora 只在 docker 驗過，還沒在實機上驗過免 sudo 的那條路。

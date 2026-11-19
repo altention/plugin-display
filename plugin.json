@@ -12,7 +12,7 @@
     "dc.post": 1,
     "dc.read": 1,
     "rewrite": 1,
-    "tokens": 1
+    "tokens": 2
   },
   "skills": [
     {
@@ -42,8 +42,8 @@
       "check": "{python} \"{plugin}/bin/display\" --check chrome",
       "why": "公式、表格、圖表、流程圖、程式差異、終端機輸出和 SVG／HTML，都是在沒有視窗的 Chrome 裡排好再拍成圖",
       "install": {
-        "debian": "~/altention/plugins/display/bin/display --install chrome",
-        "fedora": "~/altention/plugins/display/bin/display --install chrome",
+        "debian": "{python} \"{plugin}/bin/display\" --install chrome",
+        "fedora": "{python} \"{plugin}/bin/display\" --install chrome",
         "arch": "sudo pacman -S --needed --noconfirm chromium",
         "macos": "brew install --cask google-chrome"
       },

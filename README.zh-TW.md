@@ -27,7 +27,7 @@ Claude 在 Discord 給你看公式、表格、圖表、流程圖或程式差異�
 
 ## 需求
 
-- Altention 0.5.0 以上
+- Altention 0.6.0 以上
 - 不需要其他插件。
 - Python 3（Altention 本來就要）。
 - Chrome 或 Chromium，照這個順序找：`DISPLAY_CHROME` 寫的路徑、Playwright 裝的（`~/.cache/ms-playwright`）、`PATH` 上的 `chromium`、`chromium-browser`、`google-chrome` 或 `chrome`，最後是 macOS「應用程式」裡的 Google Chrome。

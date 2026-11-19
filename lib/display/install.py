@@ -171,7 +171,7 @@ def unknown():
 def finish(run, have):
     """Run the line that installs the libraries, its output shown as it goes; then whether the shell has them."""
     sys.stdout.flush()  # what was said comes before its output, into a pipe too (#setup)
-    if subprocess.run(run).returncode != 0:  # no-timeout: sudo waits for the person to type a password
+    if subprocess.run(run).returncode != 0:  # no-timeout: sudo waits for a password, or root installs system packages: no telling how long
         print("chrome: 沒裝成（上面是它說的）")
         return 1
     lacking = missing_libs(have)

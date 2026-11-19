@@ -207,11 +207,12 @@ class PluginJson(unittest.TestCase):
             self.assertTrue(n["why"] and n["size"] and n["hint"], n["name"])
             self.assertLessEqual(set(n["install"]), {"debian", "fedora", "arch", "macos"})
             for system, cmd in n["install"].items():
-                # ours, where README says (the engine fills no {plugin} in install yet): sudo only when said
-                ours = cmd == "~/altention/plugins/display/bin/display --install chrome"
+                # ours, from wherever the plugin is (tokens 2: the engine fills {python} and {plugin} in): sudo only when said
+                ours = cmd == '{python} "{plugin}/bin/display" --install chrome'
                 self.assertTrue(cmd.startswith("sudo ") or system == "macos" or ours, cmd)
             self.assertEqual(bool(n.get("optional")), bool(n.get("for")), n["name"])
         self.assertEqual([n["name"] for n in d["needs"] if n.get("optional")], ["poppler", "venv"])
+        self.assertEqual(d["uses"]["tokens"], 2, "an install with {plugin} needs Altention 0.6.0's tokens v2")
         self.assertIn("ask", next(n for n in d["needs"] if n["name"] == "cjk-font"))
 
     def test_chrome_installed_without_sudo_when_nothing_lacks(self):
